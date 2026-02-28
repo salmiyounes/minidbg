@@ -1,32 +1,42 @@
 
-#include <iostream>
-#include <unistd.h>
-#include <stdlib.h>
 #include "bestline.h"
+#include <iostream>
+#include <stdlib.h>
+#include <unistd.h>
 
-void handle_command(const char *command) {
-    (void)command;
-}
+class debugger {
+private:
+  std::string prog_name;
+  pid_t pid;
 
-void main_debugger_loop() {
-    char *line;
+public:
+  debugger(std::string prog_name, pid_t pid) : prog_name(prog_name), pid(pid) {}
 
-    while ((line = bestline("(lc3-dbg) ")) != NULL) {
-        bestlineHistoryAdd(line);
-        free(line);
-    }
+  void run();
+};
+
+void debugger::run() {
+  char *line = nullptr;
+  while ((line = bestline("(lc3-dbg) ")) != nullptr) {
+    bestlineHistoryAdd(line);
+    free(line);
+  }
 }
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: ./main <file>. \n");
-        return -1;
-    }
-    pid_t pid = fork();
-    if (pid == 0) {
-        //
-    } else if (pid >= 1) {
-        main_debugger_loop();
-    }
-    return 0;
+  if (argc < 2) {
+    std::cerr << "Usage: ./main <program>";
+    return -1;
+  }
+
+  auto prog = argv[1];
+
+  auto pid = fork();
+  if (pid == 0) {
+    //
+  } else if (pid >= 1) {
+    debugger dbg{prog, pid};
+    dbg.run();
+  }
+  return 0;
 }
