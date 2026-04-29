@@ -44,6 +44,7 @@ public:
   debugger(std::string prog_name, pid_t pid) : prog_name(prog_name), pid(pid) {}
 
   void run();
+  void print_help();
   void handle_command(const std::string &line);
   void continue_execution();
 };
@@ -52,7 +53,10 @@ void debugger::handle_command(const std::string &line) {
   auto args = split(line, ' ');
   auto command = args[0];
 
-  if (starts_with(command, "continue")) {
+  if (starts_with(command, "help")) {
+    print_help();
+  }
+  else if (starts_with(command, "continue")) {
     continue_execution();
   } else {
     std::cerr << "Unknown command\n";
@@ -67,10 +71,26 @@ void debugger::continue_execution() {
   waitpid(pid, &wait_status, options);
 }
 
+void debugger::print_help() {
+
+}
+
+void completion(const char *buf, int pos, bestlineCompletions *lc) {
+  (void) pos;
+  if (starts_with(buf, "h")) {
+    bestlineAddCompletion(lc, "help");
+  } else if (starts_with(buf, "c")) {
+    bestlineAddCompletion(lc, "continue");
+  }
+}
+
 void debugger::run() {
   int wait_status;
   auto options = 0;
   waitpid(pid, &wait_status, options);
+
+  // Set the completion callback
+  bestlineSetCompletionCallback(completion);
 
   char *line = nullptr;
   while ((line = bestline("(minidbg) ")) != nullptr) {
