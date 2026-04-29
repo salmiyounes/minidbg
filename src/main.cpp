@@ -72,7 +72,9 @@ void debugger::continue_execution() {
 }
 
 void debugger::print_help() {
-
+  std::cout << "Available commands:\n";
+  std::cout << "  help     - Show this help message\n";
+  std::cout << "  continue - Resume execution of the program\n";
 }
 
 void completion(const char *buf, int pos, bestlineCompletions *lc) {
