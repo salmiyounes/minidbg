@@ -1,14 +1,17 @@
 #include "bestline.h"
 #include "breakpoint.hpp"
+#include "register.hpp"
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <stdlib.h>
+#include <sys/personality.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 std::vector<std::string> split(const std::string &s, char delim) {
   std::vector<std::string> result;
@@ -48,6 +51,7 @@ public:
 
   void run();
   void print_help();
+  void dump_registers();
   void handle_command(const std::string &line);
   void continue_execution();
   void set_breakpoint_at_address(std::intptr_t addr);
@@ -59,23 +63,34 @@ void debugger::handle_command(const std::string &line) {
 
   if (starts_with(command, "help")) {
     print_help();
-  }
-  else if (starts_with(command, "break")) {
-    std::string addr {args[1], 2}; 
+  } else if (starts_with(command, "break")) {
+    std::string addr{args[1], 2};
     set_breakpoint_at_address(std::stol(addr, 0, 16));
-  }
-  else if (starts_with(command, "continue")) {
+  } else if (starts_with(command, "continue")) {
     continue_execution();
+  } else if (starts_with(command, "info")) {
+    if (starts_with(args[1], "registers")) {
+      dump_registers();
+    } else {
+      std::cerr << "Unknown command\n";
+    }
   } else {
     std::cerr << "Unknown command\n";
   }
 }
 
-void  debugger::set_breakpoint_at_address(std::intptr_t addr) {
-    std::cout << "Set breakpoint at address 0x" << std::hex << addr << std::endl;
-    breakpoint bp {pid, addr};
-    bp.enable();
-    m_breakpoints[addr] = bp;
+void debugger::dump_registers() {
+  for (const auto &rd : g_register_descriptors) {
+    std::cout << rd.name << " 0x" << std::setfill('0') << std::setw(16)
+              << std::hex << get_register_value(pid, rd.r) << std::endl;
+  }
+}
+
+void debugger::set_breakpoint_at_address(std::intptr_t addr) {
+  std::cout << "Set breakpoint at address 0x" << std::hex << addr << std::endl;
+  breakpoint bp{pid, addr};
+  bp.enable();
+  m_breakpoints[addr] = bp;
 }
 
 void debugger::continue_execution() {
@@ -93,13 +108,17 @@ void debugger::print_help() {
 }
 
 void completion(const char *buf, int pos, bestlineCompletions *lc) {
-  (void) pos;
+  (void)pos;
   if (starts_with(buf, "h")) {
     bestlineAddCompletion(lc, "help");
   } else if (starts_with(buf, "c")) {
     bestlineAddCompletion(lc, "continue");
   } else if (starts_with(buf, "br")) {
     bestlineAddCompletion(lc, "break");
+  } else if (starts_with(buf, "info")) {
+    bestlineAddCompletion(lc, "info");
+  } else if (starts_with(buf, "reg")) {
+    bestlineAddCompletion(lc, "register");
   }
 }
 
@@ -137,7 +156,7 @@ int main(int argc, char **argv) {
 
   auto pid = fork();
   if (pid == 0) {
-    std::cout << prog;
+    personality(ADDR_NO_RANDOMIZE);
     start_debugee(prog);
   } else if (pid >= 1) {
     debugger dbg{prog, pid};

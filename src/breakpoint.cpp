@@ -1,6 +1,6 @@
-#include <sys/ptrace.h>
-#include <iostream>
 #include "breakpoint.hpp"
+#include <iostream>
+#include <sys/ptrace.h>
 
 /*
 A #BP exception occurs when an INT3 instruction is executed.
@@ -11,14 +11,15 @@ https://kib.kiev.ua/x86docs/AMD/AMD64/24593_APM_v2-r3.08.pdf
 */
 
 void breakpoint::enable() {
-    auto data = ptrace(PTRACE_PEEKDATA, m_pid, m_addr, nullptr);
-    m_saved_data = static_cast<uint8_t>(data & 0xff);
-    uint64_t int3 = 0xcc;
-    if (ptrace(PTRACE_POKEDATA, m_pid, (void *)m_addr, (void *)((data & ~0xff) | int3)) == -1) {
-        std::cerr << "PTRACE_POKEDATA\n";
-        return;
-    }
-    m_enabled = true;   
+  auto data = ptrace(PTRACE_PEEKDATA, m_pid, m_addr, nullptr);
+  m_saved_data = static_cast<uint8_t>(data & 0xff);
+  uint64_t int3 = 0xcc;
+  if (ptrace(PTRACE_POKEDATA, m_pid, (void *)m_addr,
+             (void *)((data & ~0xff) | int3)) == -1) {
+    std::cerr << "PTRACE_POKEDATA\n";
+    return;
+  }
+  m_enabled = true;
 }
 
 /*
@@ -37,10 +38,11 @@ https://kib.kiev.ua/x86docs/AMD/AMD64/24593_APM_v2-r3.08.pdf
 */
 
 void breakpoint::disable() {
-    auto data = ptrace(PTRACE_PEEKDATA, m_pid, m_addr, nullptr);
-    if (ptrace(PTRACE_POKEDATA, m_pid, (void *)m_addr, (void *)((data & ~0xff) | m_saved_data)) == -1) {
-        std::cerr << "PTRACE_POKEDATA\n";
-        return;
-    }
-    m_enabled = false;
+  auto data = ptrace(PTRACE_PEEKDATA, m_pid, m_addr, nullptr);
+  if (ptrace(PTRACE_POKEDATA, m_pid, (void *)m_addr,
+             (void *)((data & ~0xff) | m_saved_data)) == -1) {
+    std::cerr << "PTRACE_POKEDATA\n";
+    return;
+  }
+  m_enabled = false;
 }
