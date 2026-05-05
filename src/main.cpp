@@ -1,5 +1,6 @@
 #include "bestline.h"
 #include "breakpoint.hpp"
+#include "pmparser.h"
 #include "register.hpp"
 #include <iomanip>
 #include <iostream>
@@ -45,11 +46,14 @@ private:
   std::unordered_map<std::intptr_t, breakpoint> m_breakpoints;
   std::string prog_name;
   pid_t pid;
+  uint64_t load_addr;
 
 public:
   debugger(std::string prog_name, pid_t pid) : prog_name(prog_name), pid(pid) {}
 
   void run();
+  void initialise_load_address();
+  uint64_t offset_dwarf_address(uint64_t addr);
   void print_help();
   void dump_registers();
   void handle_command(const std::string &line);
@@ -84,6 +88,42 @@ void debugger::dump_registers() {
     std::cout << rd.name << " 0x" << std::setfill('0') << std::setw(16)
               << std::hex << get_register_value(pid, rd.r) << std::endl;
   }
+}
+
+void debugger::initialise_load_address() {
+  procmaps_iterator maps_iter;
+  procmaps_error_t parser_err = PROCMAPS_SUCCESS;
+
+  parser_err = pmparser_parse(pid, &maps_iter);
+  if (parser_err) {
+    std::cerr
+        << "initialise_load_address: failure to parse memory map of process "
+        << pid << " (error=" << static_cast<int>(parser_err) << ")"
+        << std::endl;
+    return;
+  }
+
+  // iterate over areas
+  procmaps_struct *mem_region = nullptr;
+
+  // Use pmparser_next to get the first memory region
+  // The first entry in /proc/self/maps is usually the base load address
+  mem_region = pmparser_next(&maps_iter);
+  if (mem_region == nullptr) {
+    std::cerr
+        << "initialise_load_address: Could not find a valid memory region."
+        << std::endl;
+    return;
+  }
+
+  load_addr = reinterpret_cast<uint64_t>(mem_region->addr_start);
+
+  pmparser_free(&maps_iter);
+  return;
+}
+
+uint64_t debugger::offset_dwarf_address(uint64_t addr) {
+  return addr + load_addr;
 }
 
 void debugger::set_breakpoint_at_address(std::intptr_t addr) {
@@ -127,6 +167,7 @@ void debugger::run() {
   auto options = 0;
   waitpid(pid, &wait_status, options);
 
+  initialise_load_address();
   // Set the completion callback
   bestlineSetCompletionCallback(completion);
 
@@ -159,6 +200,7 @@ int main(int argc, char **argv) {
     personality(ADDR_NO_RANDOMIZE);
     start_debugee(prog);
   } else if (pid >= 1) {
+    std::cout << "Started debugging process " << pid << '\n';
     debugger dbg{prog, pid};
     dbg.run();
   }
