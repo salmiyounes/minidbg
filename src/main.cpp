@@ -2,6 +2,7 @@
 #include "breakpoint.hpp"
 #include "pmparser.h"
 #include "register.hpp"
+#include "utils.hpp"
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -13,33 +14,6 @@
 #include <unistd.h>
 #include <unordered_map>
 #include <vector>
-
-std::vector<std::string> split(const std::string &s, char delim) {
-  std::vector<std::string> result;
-  std::stringstream ss(s);
-  std::string item;
-
-  while (std::getline(ss, item, delim)) {
-    result.push_back(item);
-  }
-
-  return result;
-}
-
-bool starts_with(const std::string &str, const std::string &sub,
-                 bool ignore_case = false) {
-  int str_len = str.size();
-  int sub_len = sub.size();
-  if (str_len < sub_len)
-    return false;
-
-  if (ignore_case) {
-    return std::equal(sub.begin(), sub.end(), str.begin(), [](char a, char b) {
-      return std::tolower(a) == std::tolower(b);
-    });
-  }
-  return str.compare(0, sub_len, sub) == 0;
-}
 
 class debugger {
 private:
@@ -63,21 +37,20 @@ public:
 
 void debugger::handle_command(const std::string &line) {
   auto args = split(line, ' ');
+  if (args.empty())
+    return;
+
   auto command = args[0];
 
-  if (starts_with(command, "help")) {
+  if (command == "help" || command == "h") {
     print_help();
-  } else if (starts_with(command, "break")) {
+  } else if (command == "break" || command == "br") {
     std::string addr{args[1], 2};
     set_breakpoint_at_address(std::stol(addr, 0, 16));
-  } else if (starts_with(command, "continue")) {
+  } else if (command == "continue") {
     continue_execution();
-  } else if (starts_with(command, "info")) {
-    if (starts_with(args[1], "registers")) {
-      dump_registers();
-    } else {
-      std::cerr << "Unknown command\n";
-    }
+  } else if (command == "register" || command == "reg") {
+    dump_registers();
   } else {
     std::cerr << "Unknown command\n";
   }
@@ -147,8 +120,8 @@ void debugger::print_help() {
   std::cout << "  continue - Resume execution of the program\n";
 }
 
-void completion(const char *buf, int pos, bestlineCompletions *lc) {
-  (void)pos;
+void completion(const char *buf, [[maybe_unused]] int pos,
+                bestlineCompletions *lc) {
   if (starts_with(buf, "h")) {
     bestlineAddCompletion(lc, "help");
   } else if (starts_with(buf, "c")) {
@@ -189,7 +162,7 @@ void start_debugee(const std::string &prog_name) {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    std::cerr << "Usage: ./minidbg <program>";
+    std::cerr << "Usage: ./minidbg <program>\n";
     return -1;
   }
 
