@@ -28,10 +28,12 @@ public:
   void run();
   void initialise_load_address();
   uint64_t offset_dwarf_address(uint64_t addr);
+  void wait_for_signal();
   void print_help();
   void dump_registers();
   void handle_command(const std::string &line);
   void continue_execution();
+  void single_step_instruction();
   void set_breakpoint_at_address(std::intptr_t addr);
 };
 
@@ -51,6 +53,8 @@ void debugger::handle_command(const std::string &line) {
     continue_execution();
   } else if (command == "register" || command == "reg") {
     dump_registers();
+  } else if (command == "nexti") {
+    single_step_instruction();
   } else {
     std::cerr << "Unknown command\n";
   }
@@ -61,6 +65,12 @@ void debugger::dump_registers() {
     std::cout << rd.name << " 0x" << std::setfill('0') << std::setw(16)
               << std::hex << get_register_value(pid, rd.r) << std::endl;
   }
+}
+
+void debugger::wait_for_signal() {
+  int wait_status;
+  auto options = 0;
+  waitpid(pid, &wait_status, options);
 }
 
 void debugger::initialise_load_address() {
@@ -106,12 +116,16 @@ void debugger::set_breakpoint_at_address(std::intptr_t addr) {
   m_breakpoints[addr] = bp;
 }
 
+void debugger::single_step_instruction() {
+  ptrace(PTRACE_SINGLESTEP, pid, nullptr, nullptr);
+
+  wait_for_signal();
+}
+
 void debugger::continue_execution() {
   ptrace(PTRACE_CONT, pid, nullptr, nullptr);
 
-  int wait_status;
-  auto options = 0;
-  waitpid(pid, &wait_status, options);
+  wait_for_signal();
 }
 
 void debugger::print_help() {
