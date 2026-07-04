@@ -34,6 +34,7 @@ public:
   void handle_command(const std::string &line);
   void continue_execution();
   void single_step_instruction();
+  void single_step_instruction_with_breakpoint_check();
   void set_breakpoint_at_address(std::intptr_t addr);
 };
 
@@ -53,8 +54,8 @@ void debugger::handle_command(const std::string &line) {
     continue_execution();
   } else if (command == "register" || command == "reg") {
     dump_registers();
-  } else if (command == "nexti") {
-    single_step_instruction();
+  } else if (command == "nexti" || command == "ni") {
+    single_step_instruction_with_breakpoint_check();
   } else {
     std::cerr << "Unknown command\n";
   }
@@ -120,6 +121,22 @@ void debugger::single_step_instruction() {
   ptrace(PTRACE_SINGLESTEP, pid, nullptr, nullptr);
 
   wait_for_signal();
+}
+
+void debugger::single_step_instruction_with_breakpoint_check() {
+  // first check if we hit a breakpoint then step over it
+  // else just execute the next instruction
+  uint64_t pc = get_register_value(pid, reg::rip);
+  if (m_breakpoints.count(pc)) {
+    auto &br = m_breakpoints[pc];
+    if (br.is_enabled()) {
+      br.disable();
+      single_step_instruction();
+      br.enable();
+    }
+  } else {
+    single_step_instruction();
+  }
 }
 
 void debugger::continue_execution() {
