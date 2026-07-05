@@ -34,6 +34,7 @@ public:
   void handle_command(const std::string &line);
   void continue_execution();
   void single_step_instruction();
+  void step_over_breakpoint();
   void single_step_instruction_with_breakpoint_check();
   void set_breakpoint_at_address(std::intptr_t addr);
 };
@@ -123,10 +124,10 @@ void debugger::single_step_instruction() {
   wait_for_signal();
 }
 
-void debugger::single_step_instruction_with_breakpoint_check() {
-  // first check if we hit a breakpoint then step over it
-  // else just execute the next instruction
-  uint64_t pc = get_register_value(pid, reg::rip);
+uint64_t get_pc(pid_t pid) { return get_register_value(pid, reg::rip); }
+
+void debugger::step_over_breakpoint() {
+  uint64_t pc = get_pc(pid);
   if (m_breakpoints.count(pc)) {
     auto &br = m_breakpoints[pc];
     if (br.is_enabled()) {
@@ -134,6 +135,15 @@ void debugger::single_step_instruction_with_breakpoint_check() {
       single_step_instruction();
       br.enable();
     }
+  }
+}
+
+void debugger::single_step_instruction_with_breakpoint_check() {
+  // first check if we hit a breakpoint then step over it
+  // else just execute the next instruction
+  uint64_t pc = get_pc(pid);
+  if (m_breakpoints.count(pc)) {
+    step_over_breakpoint();
   } else {
     single_step_instruction();
   }
