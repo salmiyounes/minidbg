@@ -31,6 +31,7 @@ public:
   void wait_for_signal();
   void print_help();
   uint64_t read_memory(uint64_t addr);
+  void write_memory(uint64_t addr, uint64_t value);
   void dump_registers();
   void handle_command(const std::string &line);
   void continue_execution();
@@ -65,6 +66,10 @@ void debugger::handle_command(const std::string &line) {
 
 uint64_t debugger::read_memory(uint64_t addr) {
   return ptrace(PTRACE_PEEKDATA, pid, addr, nullptr);
+}
+
+void debugger::write_memory(uint64_t addr, uint64_t value) {
+  ptrace(PTRACE_POKEDATA, pid, addr, value);
 }
 
 void debugger::dump_registers() {
