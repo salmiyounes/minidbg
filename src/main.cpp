@@ -30,6 +30,7 @@ public:
   uint64_t offset_dwarf_address(uint64_t addr);
   void wait_for_signal();
   void print_help();
+  uint64_t read_memory(uint64_t addr);
   void dump_registers();
   void handle_command(const std::string &line);
   void continue_execution();
@@ -60,6 +61,10 @@ void debugger::handle_command(const std::string &line) {
   } else {
     std::cerr << "Unknown command\n";
   }
+}
+
+uint64_t debugger::read_memory(uint64_t addr) {
+  return ptrace(PTRACE_PEEKDATA, pid, addr, nullptr);
 }
 
 void debugger::dump_registers() {
