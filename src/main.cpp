@@ -59,6 +59,15 @@ void debugger::handle_command(const std::string &line) {
     dump_registers();
   } else if (command == "nexti" || command == "ni") {
     single_step_instruction_with_breakpoint_check();
+  } else if (command == "memory") {
+    std::string addr{args[2], 2};
+    if (starts_with(args[1], "read")) {
+      std::cout << std::hex << read_memory(std::stol(addr, 0, 16)) << std::endl;
+    }
+    if (starts_with(args[1], "write")) {
+      std::string val{args[3], 2};
+      write_memory(std::stol(addr, 0, 16), std::stol(val, 0, 16));
+    }
   } else {
     std::cerr << "Unknown command\n";
   }
