@@ -4,3 +4,6 @@
 [submodule "thirdparty/proc_maps_parser"]
 	path = thirdparty/proc_maps_parser
 	url = https://github.com/salmiyounes/proc_maps_parser
+[submodule "thirdparty/libelfin"]
+	path = thirdparty/libelfin
+	url = https://github.com/salmiyounes/libelfin
